@@ -20,6 +20,9 @@ class HotEnd{
         // Temperatur in °C (aus Tabelle + Interpolation)
         float getTemperature();
 
+        // Temperatur Mittelwert in °C (aus Tabelle + Interpolation)
+        float getMeanTemperature(const uint8_t NUM_SAMPLES);
+
     private:
 
         //========== Funktions-Prototypen  ==========//
@@ -35,23 +38,23 @@ class HotEnd{
         // Thermistor
         const uint8_t _NTCPin;
     
-        static constexpr double ADC_VREF   = 3.3;      // V
-        static constexpr uint16_t ADC_MAX  = 4095;     // 12-bit Auflösung
+        static constexpr double _ADC_VREF   = 3.3;      // V
+        static constexpr uint16_t _ADC_MAX  = 4095;     // 12-bit Auflösung
 
-        static constexpr double K_CORR = -0.04346;
-        static constexpr double D_CORR =  1.1333;
-        static constexpr double R_FIXED = 2500.0;      // Ohm, Festwiderstand
+        static constexpr double _K_CORR = -0.04346;
+        static constexpr double _D_CORR =  1.1333;
+        static constexpr double _R_FIXED = 2500.0;      // Ohm, Festwiderstand
         
-        static constexpr uint16_t SAMPLE_COUNT = 10;
-        static constexpr uint16_t SAMPLE_DELAY_MS = 50;
+        static constexpr uint16_t _SAMPLE_COUNT = 10;
+        static constexpr uint16_t _SAMPLE_DELAY_MS = 50;
 
-        struct NtcPoint {
+        struct _NtcPoint {
             float tempC;    // °C
             float resKOhm;  // kΩ
         };
 
-        static constexpr size_t NTC_TABLE_SIZE = 61;
-        static const NtcPoint _ntcTable[NTC_TABLE_SIZE];
+        static constexpr size_t _NTC_TABLE_SIZE = 61;
+        static const _NtcPoint _ntcTable[_NTC_TABLE_SIZE];
 
 };
 

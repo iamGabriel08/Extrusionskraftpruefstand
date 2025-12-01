@@ -16,22 +16,22 @@ void HotEnd::setHeaterPwm(uint8_t pwmValue) {
 double HotEnd::getNtcResistance() {
     double sum_res = 0.0;
 
-    for (uint16_t i = 0; i < SAMPLE_COUNT; ++i) {
+    for (uint16_t i = 0; i < _SAMPLE_COUNT; ++i) {
         uint16_t val_raw = analogRead(_NTCPin);
 
         // ADC-Spannung laut ESP
-        double U_out_esp = (static_cast<double>(val_raw) * ADC_VREF) / ADC_MAX;
+        double U_out_esp = (static_cast<double>(val_raw) * _ADC_VREF) / _ADC_MAX;
 
         //  Korrektur
-        double U_out = U_out_esp * (K_CORR * U_out_esp + D_CORR); 
+        double U_out = U_out_esp * (_K_CORR * U_out_esp + _D_CORR); 
 
         // Spannungsteiler-Formel: U_out = U_b * R_ntc / (R_fixed + R_ntc)
         // => R_ntc = R_fixed * U_out / (U_b - U_out)
-        double res_ntc = (R_FIXED * U_out) / (ADC_VREF - U_out);
+        double res_ntc = (_R_FIXED * U_out) / (_ADC_VREF - U_out);
         sum_res += res_ntc;
-        delay(SAMPLE_DELAY_MS);
+        delay(_SAMPLE_DELAY_MS);
     }
-    return sum_res / SAMPLE_COUNT; // Mittelwert in Ohm
+    return sum_res / _SAMPLE_COUNT; // Mittelwert in Ohm
 }
 
 float HotEnd::getTemperature() {
@@ -40,11 +40,24 @@ float HotEnd::getTemperature() {
     return temperatureFromResistance(rKOhm);
 }
 
+float HotEnd::getMeanTemperature(const uint8_t NUM_SAMPLES){
+    static long sumTemp  = 0;
+    static uint8_t count = 0;
+    static long meanTemp = 0;
+    
+    count++;
+    if(count == NUM_SAMPLES){
+        
+
+    }
+    
+}
+
 //========== Private Funktions-Implementierungen  ==========//
 
 // NTC 104NT-4-R025H42G
 // Tabelle: { temperature [°C], resistance [kΩ] }
-const HotEnd::NtcPoint HotEnd::_ntcTable[HotEnd::NTC_TABLE_SIZE] = {
+const HotEnd::_NtcPoint HotEnd::_ntcTable[HotEnd::_NTC_TABLE_SIZE] = {
     {   0.0f, 354.6f  },
     {   5.0f, 270.8f  },
     {  10.0f, 208.8f  },
@@ -114,11 +127,11 @@ float HotEnd::temperatureFromResistance(float rKOhm) {
     if (rKOhm >= _ntcTable[0].resKOhm) {
         return _ntcTable[0].tempC;     // kälter als 0°C
     }
-    if (rKOhm <= _ntcTable[NTC_TABLE_SIZE - 1].resKOhm) {
-        return _ntcTable[NTC_TABLE_SIZE - 1].tempC; // heißer als 300°C
+    if (rKOhm <= _ntcTable[_NTC_TABLE_SIZE - 1].resKOhm) {
+        return _ntcTable[_NTC_TABLE_SIZE - 1].tempC; // heißer als 300°C
     }
     // Widerstand nimmt mit Temperatur ab -> wir suchen das Intervall
-    for (size_t i = 0; i < NTC_TABLE_SIZE - 1; ++i) {
+    for (size_t i = 0; i < _NTC_TABLE_SIZE - 1; ++i) {
         float r1 = _ntcTable[i].resKOhm;
         float r2 = _ntcTable[i + 1].resKOhm;
 
@@ -132,5 +145,5 @@ float HotEnd::temperatureFromResistance(float rKOhm) {
         }
     }
     // sollte nie erreicht werden
-    return _ntcTable[NTC_TABLE_SIZE - 1].tempC;
+    return _ntcTable[_NTC_TABLE_SIZE - 1].tempC;
 }
