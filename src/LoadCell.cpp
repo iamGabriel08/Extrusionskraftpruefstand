@@ -8,49 +8,37 @@ LoadCell::LoadCell(const uint8_t dataPin, const uint8_t clockPin): _dataPin(data
 
 //========== Öffentliche Funktions-Implementierungen  ==========//
 double LoadCell::getMeanWheight(const uint8_t NUM_SAMPLES){
-    static long sumAdc  = 0;
-    static uint8_t count = 0;
-    static long meanAdc = 0;      // letzter gültiger Mittelwert (ADC)
-    static bool hasMean = false;  // gibt es schon einen gültigen Mittelwert?
+    static int64_t sumAdc = 0;
+    static uint8_t count  = 0;
 
-    if (_scale.is_ready()) { 
-        long raw = _scale.read();   // HX711-Lib liefert long (signed)
+    if (_scale.is_ready()) {
+        long raw = _scale.read();
         sumAdc += raw;
         count++;
 
         if (count >= NUM_SAMPLES) {
-            meanAdc = sumAdc / count;   // neuer Mittelwert
-
+            uint32_t meanAdc = (uint32_t)sumAdc / count;
             double weight = calcWeight(meanAdc);
 
             Serial.print("ADC mean: ");
-            Serial.println(meanAdc);
+            Serial.println(meanAdc, 1);
 
             Serial.print("Gewicht = ");
             Serial.print(weight);
             Serial.println(" g");
 
-            // Zurücksetzen für nächste Mittelungsrunde
             sumAdc = 0;
             count  = 0;
-            hasMean = true;
 
-            return weight;  // neuer gültiger Messwert
+            return weight;
         }
-    } 
-    else {
+    } else {
         Serial.println("HX711 not found.");
     }
 
-    // Hier landen wir, wenn noch kein neues Mittel fertig ist
-    if (hasMean) {
-        // letzten gültigen Mittelwert in g zurückgeben
-        return calcWeight(meanAdc);
-    } else {
-        // Ganz am Anfang: noch nie ein Mittelwert → irgendein Default
-        return 0.0;
-    }
+    // Wenn kein neuer Mittelwert fertig ist, gib den letzten Wert oder 0 zurück
 }
+
 
 double LoadCell::getRawWheight(){
 

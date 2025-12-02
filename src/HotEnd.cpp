@@ -2,8 +2,9 @@
 
 //========== Konstruktor ==========//   
 
-HotEnd::HotEnd(const uint8_t gatePin, const uint8_t NTC_Pin): _gatePin(gatePin), _NTCPin(NTC_Pin){
+HotEnd::HotEnd(const uint8_t gatePin, const uint8_t NTC_Pin, const uint8_t fanPin): _gatePin(gatePin), _NTCPin(NTC_Pin), _fanPin(fanPin){
     pinMode(_gatePin,OUTPUT);
+    pinMode(_fanPin,OUTPUT);
     pinMode(_NTCPin,INPUT);
 }
 
@@ -13,6 +14,10 @@ void HotEnd::setHeaterPwm(uint8_t pwmValue) {
     analogWrite(_gatePin, pwmValue);   
 }
    
+void HotEnd::setFanPwm(uint8_t pwmValue){
+    analogWrite(_fanPin, pwmValue); 
+}
+
 double HotEnd::getNtcResistance() {
     double sum_res = 0.0;
 
@@ -41,15 +46,7 @@ float HotEnd::getTemperature() {
 }
 
 float HotEnd::getMeanTemperature(const uint8_t NUM_SAMPLES){
-    static long sumTemp  = 0;
-    static uint8_t count = 0;
-    static long meanTemp = 0;
-    
-    count++;
-    if(count == NUM_SAMPLES){
-        
-
-    }
+   
     
 }
 

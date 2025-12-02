@@ -7,12 +7,16 @@ class HotEnd{
 
     public:
         //========== Konstruktor ==========//   
-        HotEnd(const uint8_t gatePin, const uint8_t NTC_Pin);
+        HotEnd(const uint8_t gatePin, const uint8_t NTC_Pin, const uint8_t fanPin);
 
         //========== Funktions-Prototypen  ==========//
 
         // Heizer ansteuern (0..255)
         void setHeaterPwm(uint8_t pwmValue);
+
+        // Lüfter ansteuern (0..255)
+        void setFanPwm(uint8_t pwmValue);
+
 
         // NTC-Widerstand in Ohm (gemittelt)
         double getNtcResistance(void);
@@ -31,6 +35,9 @@ class HotEnd{
         static float temperatureFromResistance(float rKOhm); 
 
         //========== Variablen  ==========//
+
+        // Lüfter
+        const uint8_t _fanPin;
 
         // Heizelement
         const uint8_t _gatePin;
