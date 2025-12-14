@@ -17,42 +17,38 @@
 HotEnd myHotEnd(HEATER_PIN, NTC_PIN, FAN_PIN);
 LoadCell myLoadCell(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
+bool state = true;
+
 void setup() {
   Serial.begin(115200);
+
 }
 
 void loop() {
 
-  double temp = myHotEnd.getTemperature();
-  double res  = myHotEnd.getNtcResistance();
-  double wheight =  myLoadCell.getMeanWheight(10);
-  /*
-  // Temperatur über Zeit
-  Serial.print(">temp:");
-  Serial.println(temp);
+  
+  unsigned long  time = millis();
+  while(state){
+    double temp = myHotEnd.getTemperature();
+    double res  = myHotEnd.getNtcResistance();
+    unsigned long  time = millis();
+    // double wheight =  myLoadCell.getMeanWheight(10);
 
-  // ==== (optional) normale Debug-Ausgaben ====
-  // Diese werden nur im Teleplot-Log angezeigt, nicht geplottet
-  Serial.print("Widerstand: ");
-  Serial.println(res);
-  Serial.print("Temperatur: ");
-  Serial.println(temp);
+    Serial.printf("%0.3f,%lu\n", temp, time);
 
-  Serial.print("Gewicht: ");
-  Serial.println(wheight);
+    myHotEnd.setFanPwm(180);
 
-  */
-  myHotEnd.setFanPwm(180);
-
-    /*
-  if (temp < 200.0) {
-    Serial.println("ON");
-    //myHotEnd.setHeaterPwm(255);
-  } else {
-    Serial.println("OFF");
-    myHotEnd.setHeaterPwm(0);
+      /*
+    if (temp < 200.0) {
+      Serial.println("ON");
+      //myHotEnd.setHeaterPwm(255);
+    } else {
+      Serial.println("OFF");
+      myHotEnd.setHeaterPwm(0);
+    }
+    */
+   if(time > 20000) state = false;
   }
-  */
-
+  Serial.println("stop");
   delay(100);
 }
