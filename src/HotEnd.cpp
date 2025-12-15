@@ -34,7 +34,6 @@ double HotEnd::getNtcResistance() {
         // => R_ntc = R_fixed * U_out / (U_b - U_out)
         double res_ntc = (_R_FIXED * U_out) / (_ADC_VREF - U_out);
         sum_res += res_ntc;
-        delay(_SAMPLE_DELAY_MS);
     }
     return sum_res / _SAMPLE_COUNT; // Mittelwert in Ohm
 }
@@ -45,10 +44,6 @@ float HotEnd::getTemperature() {
     return temperatureFromResistance(rKOhm);
 }
 
-float HotEnd::getMeanTemperature(const uint8_t NUM_SAMPLES){
-   
-    
-}
 
 //========== Private Funktions-Implementierungen  ==========//
 

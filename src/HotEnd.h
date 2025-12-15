@@ -23,10 +23,7 @@ class HotEnd{
         
         // Temperatur in °C (aus Tabelle + Interpolation)
         float getTemperature();
-
-        // Temperatur Mittelwert in °C (aus Tabelle + Interpolation)
-        float getMeanTemperature(const uint8_t NUM_SAMPLES);
-
+        
     private:
 
         //========== Funktions-Prototypen  ==========//

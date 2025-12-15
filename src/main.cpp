@@ -1,8 +1,36 @@
 #include <Arduino.h>
 #include "HotEnd.h"
 #include "LoadCell.h"
+#include <AccelStepper.h>
 
-//========== Makros ==========//   
+//========== Makros und Parameter ==========//
+
+// ====================== PIN-DEFINITIONEN ======================
+#define STEP_PIN    10
+#define DIR_PIN     11
+#define EN_PIN      9
+
+// TMC2209-Parameter
+#define R_SENSE        0.11f         // Rsense des BTT TMC2209 V1.3
+#define DRIVER_ADDRESS 0b00          // Adresse, falls CFG-Pins nicht geändert wurden
+
+// Extruder-Parameter (anpassen!)
+const int   stepsPerRev   = 200;   // Vollschritte Motor
+const int   microstepping = 16;    // wie oben im Treiber gesetzt
+const float gearRatio     = 3.0;   // falls Getriebe, sonst 1.0
+const float mmPerRev      = 7.0;   // Förderraten-Angabe für dein Extruder
+
+const float stepsPerMM = (stepsPerRev * microstepping * gearRatio) / mmPerRev;
+
+// AccelStepper mit STEP/DIR-Treiber
+AccelStepper extruder(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
+
+// ====================== HILFSFUNKTIONEN ======================//
+
+void extrudeMM(float mm) {
+  long steps = (long)(mm * stepsPerMM);
+  extruder.move(steps);
+}
 
 // Hot-End
 #define NTC_PIN 4
@@ -13,42 +41,60 @@
 #define LOADCELL_DOUT_PIN 8
 #define LOADCELL_SCK_PIN 3
 
-//========== Objekte ==========//   
+//========== Objekte ==========//
 HotEnd myHotEnd(HEATER_PIN, NTC_PIN, FAN_PIN);
 LoadCell myLoadCell(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
-bool state = true;
-
-void setup() {
+void setup(){
   Serial.begin(115200);
+  delay(500);
 
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN,  OUTPUT);
+  pinMode(EN_PIN,   OUTPUT);
+
+  // Treiber erstmal deaktivieren (EN = HIGH bei BTT-Modulen = off)
+  digitalWrite(EN_PIN, HIGH);
+
+  // Jetzt Treiber aktivieren (EN = LOW)
+  digitalWrite(EN_PIN, LOW);
+
+  // AccelStepper konfigurieren
+  extruder.setMaxSpeed(3000);       // Schritte pro Sekunde
+  extruder.setAcceleration(3000);   // Schritte pro Sekunde^2
+
+  Serial.println("Extruder initialisiert.");
 }
 
-void loop() {
+void loop(){
+   // Stepper IMMER zuerst und so oft wie möglich bedienen
+  extruder.run();
 
-  
-  unsigned long  time = millis();
-  while(state){
+  // -------- Hot End / Logging nur periodisch --------
+  static uint32_t lastLog = 0;
+  uint32_t now = millis();
+
+  if (now - lastLog >= 200) {              // alle 100 ms
+    lastLog = now;
+
     double temp = myHotEnd.getTemperature();
-    double res  = myHotEnd.getNtcResistance();
-    unsigned long  time = millis();
-    // double wheight =  myLoadCell.getMeanWheight(10);
-
-    Serial.printf("%0.3f,%lu\n", temp, time);
-
-    myHotEnd.setFanPwm(180);
-
-      /*
-    if (temp < 200.0) {
-      Serial.println("ON");
-      //myHotEnd.setHeaterPwm(255);
-    } else {
-      Serial.println("OFF");
-      myHotEnd.setHeaterPwm(0);
-    }
-    */
-   if(time > 20000) state = false;
+    Serial.printf("%0.3f,%lu\n", temp, now);
   }
-  Serial.println("stop");
-  delay(100);
+
+  static bool once = false;
+
+  if (!extruder.isRunning()) {
+    if (!once) {
+      Serial.println("Extrudiere 10 mm vorwaerts...");
+      extrudeMM(10.0);
+      once = true;
+    } else {
+      Serial.println("Extrudiere 10 mm rueckwaerts...");
+      extrudeMM(-10.0);
+      once = false;
+      delay(2000); 
+    }
+  }
 }
+
+
