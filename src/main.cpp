@@ -6,6 +6,8 @@
 
 //========== Makros und Parameter ==========//
 
+//teständerung
+
 // Stepper
 #define STEP_PIN    10
 #define DIR_PIN     11
