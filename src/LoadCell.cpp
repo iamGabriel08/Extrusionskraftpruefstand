@@ -19,17 +19,8 @@ double LoadCell::getMeanWheight(const uint8_t NUM_SAMPLES){
         if (count >= NUM_SAMPLES) {
             uint32_t meanAdc = (uint32_t)sumAdc / count;
             double weight = calcWeight(meanAdc);
-
-            Serial.print("ADC mean: ");
-            Serial.println(meanAdc, 1);
-
-            Serial.print("Gewicht = ");
-            Serial.print(weight);
-            Serial.println(" g");
-
             sumAdc = 0;
             count  = 0;
-
             return weight;
         }
     } else {

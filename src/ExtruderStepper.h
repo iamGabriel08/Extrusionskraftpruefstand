@@ -3,34 +3,34 @@
 #include <AccelStepper.h>
 
 class ExtruderStepper {
-public:
-  ExtruderStepper(uint8_t stepPin, uint8_t dirPin, uint8_t enPin,
-                  int stepsPerRev, int microstepping,
-                  float gearRatio, float mmPerRev);
+  public:
+    //========== Konstruktor ==========//
+    ExtruderStepper(uint8_t stepPin, uint8_t dirPin, uint8_t enPin);
 
-  void begin(uint32_t serialBaud = 115200);
-  void enable();
-  void disable();
-  void setMaxSpeed(float stepsPerSecond);
-  void setAcceleration(float stepsPerSecond2);
-  
-  long distanceToGo();   // neu
+    //========== Funktions-Prototypen  ==========//
 
-  void extrudeMM(float mm);
-  void run();          // nicht const
-  bool isRunning();    // WICHTIG: nicht const (wegen AccelStepper API)
+    // Initialisiert Pins + aktiviert Treiber + setzt Speed/Accel
+    void begin(float maxSpeedStepsPerS = 3000.0f, float accelStepsPerS2 = 3000.0f);
 
-  float getStepsPerMM() const { return _stepsPerMM; }
+    void extrudeMM(float mm);   // Bewegung planen
+    void run();                 // MUSS oft aufgerufen werden
+    bool isRunning();           // ohne const (AccelStepper API)
+    long distanceToGo();        // Debug/Info
+    void enable(bool on = true);
+    float stepsPerMM() const { return _stepsPerMM; }
 
-private:
+  private:
 
-  uint8_t _stepPin, _dirPin, _enPin;
+    //========== Variablen  ==========//
+    static constexpr int   _STEPS_PER_REV   = 200;
+    static constexpr int   _MICROSTEPPING   = 16;
+    static constexpr float _GEAR_RATIO      = 3.0f;
+    static constexpr float _MM_PER_REV      = 7.0f;
 
-  int   _stepsPerRev;
-  int   _microstepping;
-  float _gearRatio;
-  float _mmPerRev;
-  float _stepsPerMM;
+    static constexpr bool _ENABLE_ACTIVE_LOW = true; // BTT/TMC: meist LOW=enable
 
-  AccelStepper _stepper; // nicht const
+    uint8_t _stepPin, _dirPin, _enPin;
+    float   _stepsPerMM;
+
+    AccelStepper _stepper;
 };

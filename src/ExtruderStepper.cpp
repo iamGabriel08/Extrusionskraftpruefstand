@@ -1,55 +1,40 @@
 #include "ExtruderStepper.h"
-#include <math.h> // lroundf
+#include <math.h> 
 
-ExtruderStepper::ExtruderStepper(uint8_t stepPin, uint8_t dirPin, uint8_t enPin,
-                                 int stepsPerRev, int microstepping,
-                                 float gearRatio, float mmPerRev)
+//========== Konstruktor ==========//   
+ExtruderStepper::ExtruderStepper(uint8_t stepPin, uint8_t dirPin, uint8_t enPin)
 : _stepPin(stepPin),
   _dirPin(dirPin),
   _enPin(enPin),
-  _stepsPerRev(stepsPerRev),
-  _microstepping(microstepping),
-  _gearRatio(gearRatio),
-  _mmPerRev(mmPerRev),
-  _stepsPerMM(0.0f),
+  _stepsPerMM( (_STEPS_PER_REV * (float)_MICROSTEPPING * _GEAR_RATIO) / _MM_PER_REV ),
   _stepper(AccelStepper::DRIVER, stepPin, dirPin)
-{
-  _stepsPerMM = (_stepsPerRev * _microstepping * _gearRatio) / _mmPerRev;
-}
+{}
 
-void ExtruderStepper::begin(uint32_t serialBaud) {
-  Serial.begin(serialBaud);
-  delay(500);
-
+//========== Öffentliche Funktions-Implementierungen  ==========//
+void ExtruderStepper::begin(float maxSpeedStepsPerS, float accelStepsPerS2) {
   pinMode(_stepPin, OUTPUT);
   pinMode(_dirPin,  OUTPUT);
   pinMode(_enPin,   OUTPUT);
+  enable(true);
 
-  // BTT/TMC: EN=HIGH -> aus, EN=LOW -> an
-  disable();
-  enable();
+  _stepper.setMaxSpeed(maxSpeedStepsPerS);
+  _stepper.setAcceleration(accelStepsPerS2);
 
-  Serial.println("Extruder initialisiert.");
+  // Debug: zeigt dir sofort, ob stepsPerMM plausibel ist
+  Serial.print("Extruder stepsPerMM = ");
+  Serial.println(_stepsPerMM, 4);
 }
 
-void ExtruderStepper::enable() {
-  digitalWrite(_enPin, LOW);
-}
-
-void ExtruderStepper::disable() {
-  digitalWrite(_enPin, HIGH);
-}
-
-void ExtruderStepper::setMaxSpeed(float stepsPerSecond) {
-  _stepper.setMaxSpeed(stepsPerSecond);
-}
-
-void ExtruderStepper::setAcceleration(float stepsPerSecond2) {
-  _stepper.setAcceleration(stepsPerSecond2);
+void ExtruderStepper::enable(bool on) {
+  if (_ENABLE_ACTIVE_LOW) {
+    digitalWrite(_enPin, on ? LOW : HIGH);
+  } else {
+    digitalWrite(_enPin, on ? HIGH : LOW);
+  }
 }
 
 void ExtruderStepper::extrudeMM(float mm) {
-  long steps = (long)lroundf(mm * _stepsPerMM);
+  long steps = lroundf(mm * _stepsPerMM);
   _stepper.move(steps);
 }
 
