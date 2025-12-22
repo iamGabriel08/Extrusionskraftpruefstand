@@ -64,34 +64,56 @@ void setup(){
 
 void loop(){
 
-  extruder.run();
-
-  static uint32_t lastLog = 0;
-  uint32_t now = millis();
-
-  if (now - lastLog >= 100) {              // alle 100 ms
-    lastLog = now;
-
-    //double temp = myHotEnd.getTemperature();
-    //Serial.printf("%0.3f,%lu\n", temp, now);
-  }
-
-  static bool once = false;
-
-  if (!extruder.isRunning()) {
-    if (!once) {
-      Serial.println("Extrudiere 10 mm vorwaerts...");
-      extruder.extrudeMM(10.0);
-      once = true;
-    } else {
-      Serial.println("Extrudiere 10 mm rueckwaerts...");
-      extruder.extrudeMM(-10.0);
-      once = false;
-      delay(2000); 
-    }
-  }
+  vTaskDelay(pdMS_TO_TICKS(50));
 }
 
 
 // ====================== Funktionen-Implementierungen ======================//
 
+void loadCell_task(void* parameters){
+  for(;;){
+    float wheight = myLoadCell.getMeanWheight(10);
+    //Serial.println(wheight, 3);      
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
+
+void NTC_task(void* parameters){
+  for(;;){
+    float temp = myHotEnd.getTemperature(); 
+    if(xQueueSend(tempQueueHandle, (void*)&temp, pdMS_TO_TICKS(10)) != pdPASS) Serial.println("Fehler beim Senden der Temperatur");               
+    vTaskDelay(pdMS_TO_TICKS(100));           
+  }
+}
+
+void stepper_task(void*){
+  for(;;){
+    extruder.run(); // so oft wie möglich!
+
+    if (!extruder.isRunning()) {
+      extruder.extrudeMM(10.0f);     // erst neue Bewegung planen, wenn fertig
+    }
+    vTaskDelay(1); // 1 Tick “Luft”, damit andere Tasks laufen können
+  }
+}
+
+void hotEnd_task(void* parameters){
+  myHotEnd.setFanPwm(180);
+  for(;;){
+
+    static float temp = 0;
+    if(xQueueReceive(tempQueueHandle, &temp, pdMS_TO_TICKS(10)) != pdPASS) Serial.println("Fehler beim Empfangen der Temperatur");
+      Serial.print(">temp:");
+      Serial.println(temp, 2);   // println -> Zeilenumbruch \n
+
+      if (temp < 180.0f) {
+        myHotEnd.setHeaterPwm(255);
+        myHotEnd.setFanPwm(180);   
+      } 
+      else {
+        myHotEnd.setHeaterPwm(0);
+        myHotEnd.setFanPwm(180);   
+      }
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}

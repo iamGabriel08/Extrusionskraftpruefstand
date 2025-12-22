@@ -1,6 +1,5 @@
 #include "LoadCell.h"
 
-
 //========== Konstruktor ==========//   
 LoadCell::LoadCell(const uint8_t dataPin, const uint8_t clockPin): _dataPin(dataPin), _clockPin(clockPin) {
     _scale.begin(_dataPin, _clockPin);
@@ -33,9 +32,6 @@ double LoadCell::getMeanWheight(const uint8_t NUM_SAMPLES){
     return hasMean ? lastWeight : 0.0;
 }
 
-
-
-
 double LoadCell::getRawWheight(){
 
     static double lastWeight = 0.0;  // letzter gültiger Gewichtswert
@@ -63,7 +59,6 @@ double LoadCell::getRawWheight(){
         return 0.0;
     }
 }
-
 
 //========== Private Funktions-Implementierungen  ==========//
 
