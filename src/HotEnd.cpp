@@ -70,13 +70,15 @@ float HotEnd::getTemperature() {
         t2=_ntcTable[_NTC_TABLE_SIZE - 1].tempC;
     }
     else{
-        for (size_t i = 0; i < _NTC_TABLE_SIZE - 1; ++i) {
+        bool noch_nicht_gefunden=true;
+        for (size_t i = 0; i < _NTC_TABLE_SIZE - 1 &&noch_nicht_gefunden; ++i) {
             v1 = _ntcTable[i].voltageV;
             v2 = _ntcTable[i + 1].voltageV;
 
             if (esp_voltage <= v1 && esp_voltage >= v2) {
-                float t1 = _ntcTable[i].tempC;
-                float t2 = _ntcTable[i + 1].tempC;
+                t1 = _ntcTable[i].tempC;
+                t2 = _ntcTable[i + 1].tempC;
+                noch_nicht_gefunden=false;
             }
         }
     }

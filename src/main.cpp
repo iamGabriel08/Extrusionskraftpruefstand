@@ -33,7 +33,7 @@ void setup(){
 
 void loop(){
 
-  extruder.run();
+  //extruder.run();
 
   static uint32_t lastLog = 0;
   uint32_t now = millis();
@@ -41,10 +41,10 @@ void loop(){
   if (now - lastLog >= 100) {              // alle 100 ms
     lastLog = now;
 
-    //double temp = myHotEnd.getTemperature();
-    //Serial.printf("%0.3f,%lu\n", temp, now);
+    double temp = myHotEnd.getTemperature();
+    Serial.printf("%0.3f,%lu\n", temp, now);
   }
-
+  
   static bool once = false;
 
   if (!extruder.isRunning()) {
@@ -59,6 +59,7 @@ void loop(){
       delay(2000); 
     }
   }
+    
 }
 
 
