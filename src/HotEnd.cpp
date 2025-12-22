@@ -18,7 +18,7 @@ void HotEnd::setFanPwm(uint8_t pwmValue){
     analogWrite(_fanPin, pwmValue); 
 }
 
-double HotEnd::getNtcResistance() {
+double HotEnd::getNtcVoltage() {
     double sum_res = 0.0;
 
     for (uint16_t i = 0; i < _SAMPLE_COUNT; ++i) {
@@ -28,27 +28,92 @@ double HotEnd::getNtcResistance() {
         double U_out_esp = (static_cast<double>(val_raw) * _ADC_VREF) / _ADC_MAX;
 
         //  Korrektur
-        double U_out = U_out_esp * (_K_CORR * U_out_esp + _D_CORR); 
+        //double U_out = U_out_esp * (_K_CORR * U_out_esp + _D_CORR); 
 
         // Spannungsteiler-Formel: U_out = U_b * R_ntc / (R_fixed + R_ntc)
         // => R_ntc = R_fixed * U_out / (U_b - U_out)
-        double res_ntc = (_R_FIXED * U_out) / (_ADC_VREF - U_out);
-        sum_res += res_ntc;
+        //double res_ntc = (_R_FIXED * U_out) / (_ADC_VREF - U_out);
+        //sum_res += res_ntc;
+        sum_res+=U_out_esp;
     }
     return sum_res / _SAMPLE_COUNT; // Mittelwert in Ohm
 }
-
+/*
 float HotEnd::getTemperature() {
     double resOhm = getNtcResistance();
     float rKOhm = static_cast<float>(resOhm / 1000.0); // Ohm -> kΩ
     return temperatureFromResistance(rKOhm);
 }
+*/
+
+float HotEnd::getTemperature() {
+    double esp_voltage = getNtcVoltage();
+    float v1; //unterer Stützwert, Spannung
+    float v2; //oberer Stützwert, Spannung
+    
+    float t1; //unterer Stützwert, Temperatur
+    float t2; //oberer Stützwert, Temperatur
+
+    // Unterhalb/oberhalb des Tabellenbereichs clampen
+    if (esp_voltage >= _ntcTable[0].voltageV) {
+        //interpoliere mit Steigung zwischen 0ten und 1ten Element
+        v1=_ntcTable[0].voltageV;
+        v2=_ntcTable[1].voltageV;
+        t1=_ntcTable[0].tempC;
+        t2=_ntcTable[1].tempC;
+    }
+    else if (esp_voltage <= _ntcTable[_NTC_TABLE_SIZE - 1].voltageV) {
+        //interpoliere mit Steigung zwischen vorletzten und letzten Element
+        v1=_ntcTable[_NTC_TABLE_SIZE - 2].voltageV;
+        v2=_ntcTable[_NTC_TABLE_SIZE - 1].voltageV;
+        t1=_ntcTable[_NTC_TABLE_SIZE - 2].tempC;
+        t2=_ntcTable[_NTC_TABLE_SIZE - 1].tempC;
+    }
+    else{
+        for (size_t i = 0; i < _NTC_TABLE_SIZE - 1; ++i) {
+            v1 = _ntcTable[i].voltageV;
+            v2 = _ntcTable[i + 1].voltageV;
+
+            if (esp_voltage <= v1 && esp_voltage >= v2) {
+                float t1 = _ntcTable[i].tempC;
+                float t2 = _ntcTable[i + 1].tempC;
+            }
+        }
+    }
+
+    //lineare Interpolation
+    float k=(t1-t2)/(v1-v2);
+    float d=t2;
+    return k*(esp_voltage-v2)+d;
+}
 
 
 //========== Private Funktions-Implementierungen  ==========//
 
+//neue Tabelle, direkt {voltage [V], temperature[°C]}
+const HotEnd::_NtcPoint HotEnd::_ntcTable[HotEnd::_NTC_TABLE_SIZE] = {
+    {2.046000, 102.923943},
+    {1.653000, 120.719604},
+    {1.240000, 140.233643},
+    {0.838000, 163.093643},
+    {0.525000, 188.993500},
+    {0.414000, 201.788239},
+    {0.370000, 208.010605},
+    {0.293000, 220.299622},
+    {0.245000, 230.233643},
+    {0.193000, 243.005783},
+    {0.173000, 249.198715},
+    {0.139000, 260.301727},
+    {0.119000, 269.375000},
+    {0.095000, 279.709290},
+    {0.084000, 286.803040}
+    //eventuell nochmals Stüztwert mit 90 Ohm
+};
+
 // NTC 104NT-4-R025H42G
 // Tabelle: { temperature [°C], resistance [kΩ] }
+
+/*
 const HotEnd::_NtcPoint HotEnd::_ntcTable[HotEnd::_NTC_TABLE_SIZE] = {
     {   0.0f, 354.6f  },
     {   5.0f, 270.8f  },
@@ -112,7 +177,11 @@ const HotEnd::_NtcPoint HotEnd::_ntcTable[HotEnd::_NTC_TABLE_SIZE] = {
     { 295.0f,   0.08881f },
     { 300.0f,   0.08278f }
 };
+*/
 
+
+
+/*
 // Interpolation der Temperatur aus Tabelle
 float HotEnd::temperatureFromResistance(float rKOhm) {
     // Unterhalb/oberhalb des Tabellenbereichs clampen
@@ -139,3 +208,5 @@ float HotEnd::temperatureFromResistance(float rKOhm) {
     // sollte nie erreicht werden
     return _ntcTable[_NTC_TABLE_SIZE - 1].tempC;
 }
+
+*/

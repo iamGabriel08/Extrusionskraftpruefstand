@@ -19,7 +19,7 @@ class HotEnd{
 
 
         // NTC-Widerstand in Ohm (gemittelt)
-        double getNtcResistance(void);
+        double getNtcVoltage(void);
         
         // Temperatur in °C (aus Tabelle + Interpolation)
         float getTemperature();
@@ -53,11 +53,11 @@ class HotEnd{
         static constexpr uint16_t _SAMPLE_DELAY_MS = 50;
 
         struct _NtcPoint {
-            float tempC;    // °C
-            float resKOhm;  // kΩ
+            float voltageV;    // Volt
+            float tempC;  // °C
         };
 
-        static constexpr size_t _NTC_TABLE_SIZE = 61;
+        static constexpr size_t _NTC_TABLE_SIZE = 15;
         static const _NtcPoint _ntcTable[_NTC_TABLE_SIZE];
 
 };
