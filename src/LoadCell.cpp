@@ -11,24 +11,29 @@ double LoadCell::getMeanWheight(const uint8_t NUM_SAMPLES){
     static int64_t sumAdc = 0;
     static uint8_t count  = 0;
 
+    static double lastWeight = 0.0;
+    static bool hasMean = false;
+
     if (_scale.is_ready()) {
         long raw = _scale.read();
         sumAdc += raw;
         count++;
 
         if (count >= NUM_SAMPLES) {
-            uint32_t meanAdc = (uint32_t)sumAdc / count;
-            double weight = calcWeight(meanAdc);
+            int64_t meanAdc = sumAdc / count;          // kein uint32_t-cast!
+            lastWeight = calcWeight((long)meanAdc);
+            hasMean = true;
+
             sumAdc = 0;
             count  = 0;
-            return weight;
+            return lastWeight;
         }
-    } else {
-        Serial.println("HX711 not found.");
     }
-
-    // Wenn kein neuer Mittelwert fertig ist, gib den letzten Wert oder 0 zurück
+    // Falls noch kein neuer Mittelwert fertig ist:
+    return hasMean ? lastWeight : 0.0;
 }
+
+
 
 
 double LoadCell::getRawWheight(){
