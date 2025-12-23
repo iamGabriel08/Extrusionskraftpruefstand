@@ -5,18 +5,22 @@
 #include "ExtruderStepper.h"
 
 // Stepper 
+#define EN_PIN     11
 #define STEP_PIN    10
-#define DIR_PIN     11
-#define EN_PIN      9
+#define DIR_PIN     9
+
 
 // Hot-End
-#define NTC_PIN 4
-#define HEATER_PIN 5
-#define FAN_PIN 6
+#define NTC_PIN 5
+#define HEATER_PIN 6
+#define FAN_PIN 7
 
 // Load Cell
 #define LOADCELL_DOUT_PIN 8
 #define LOADCELL_SCK_PIN 3
+
+// Rotary Encoder
+#define ROTARY_ENCODER_PIN 4
 
 //========== Objekte ==========//
 HotEnd myHotEnd(HEATER_PIN, NTC_PIN, FAN_PIN);
@@ -30,7 +34,7 @@ TaskHandle_t stepperTaskHandle =  NULL;
 TaskHandle_t hotEndTaskHandle = NULL;
 
 QueueHandle_t tempQueueHandle = NULL;
-#define TEMP_QUEUE_LENGTH 10
+#define TEMP_QUEUE_LENGTH 20
 #define TEMP_QUEUE_SIZE sizeof(float)
 
 // ====================== Funktionen-Definitionen ======================//
@@ -42,7 +46,7 @@ void hotEnd_task(void* parameters);
 void setup(){
   Serial.begin(115200);
   extruder.begin(3000, 3000);
-
+  delay(5000);
   // Queues
   tempQueueHandle = xQueueCreate(TEMP_QUEUE_LENGTH, TEMP_QUEUE_SIZE);
   if(tempQueueHandle == NULL) Serial.println("Fehler beim erstellen der Temperatur Queue");
@@ -54,12 +58,13 @@ void setup(){
   if (xTaskCreatePinnedToCore (NTC_task, "NTC Task", 6144, nullptr, 1, &NTCTaskHandle, 0) != pdPASS) {
     Serial.println("Fehler beim erstellen von NTC Task");
   }
-  if (xTaskCreatePinnedToCore (stepper_task, "Stepper Task", 6144, nullptr, 1, &stepperTaskHandle, 0) != pdPASS) {
+  if (xTaskCreatePinnedToCore (stepper_task, "Stepper Task", 6144, nullptr, 1, &stepperTaskHandle, 1) != pdPASS) {
     Serial.println("Fehler beim erstellen von Stepper Task");
   }
   if (xTaskCreatePinnedToCore (hotEnd_task, "Hot end Task", 6144, nullptr, 1, &hotEndTaskHandle, 0) != pdPASS) {
     Serial.println("Fehler beim erstellen von Stepper Task");
   }
+  
 }
 
 void loop(){
@@ -86,14 +91,16 @@ void NTC_task(void* parameters){
   }
 }
 
-void stepper_task(void*){
-  for(;;){
-    extruder.run(); // so oft wie möglich!
+void stepper_task(void*) {
+  // Beispiel: konstanter Filamentvorschub in mm/s
+  // (bei Vollschritt ist stepsPerMM ~24.8125, bei 1/16 ~397)
+  const float FEED_MM_S = 5.0f;
 
-    if (!extruder.isRunning()) {
-      extruder.extrudeMM(10.0f);     // erst neue Bewegung planen, wenn fertig
-    }
-    vTaskDelay(1); // 1 Tick “Luft”, damit andere Tasks laufen können
+  extruder.setFilamentSpeedMmS(FEED_MM_S);
+
+  for(;;){
+    extruder.runSpeed();
+    taskYIELD();  // sehr kurz abgeben, ohne 1ms-Schlaf
   }
 }
 
@@ -103,9 +110,10 @@ void hotEnd_task(void* parameters){
 
     static float temp = 0;
     if(xQueueReceive(tempQueueHandle, &temp, pdMS_TO_TICKS(10)) != pdPASS) Serial.println("Fehler beim Empfangen der Temperatur");
-      Serial.print(">temp:");
-      Serial.println(temp, 2);   // println -> Zeilenumbruch \n
-
+      //Serial.print(">temp:");
+      //Serial.println(temp, 2);   // println -> Zeilenumbruch \n
+      //Serial.print(">extruded_mm:");
+      //Serial.println(extruder.getExtrudedMmSinceStart(), 3);
       if (temp < 180.0f) {
         myHotEnd.setHeaterPwm(255);
         myHotEnd.setFanPwm(180);   
