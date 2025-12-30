@@ -1,8 +1,9 @@
 #include "Rotary_Encoder.h"
 
+volatile int32_t Encoder::_overflowCount = 0;
+
 Encoder::Encoder(const uint8_t dataPin):_dataPin(dataPin){
     pcnt_init(); 
-    _overflowCount = 0;
 }
 
 
@@ -47,22 +48,18 @@ void Encoder::pcnt_init() {
 }
 
 
-uint32_t Encoder::calc_length(uint32_t totalPulses) {
-  uint32_t lenght_mm = totalPulses / Pulses_per_mm;
-  return lenght_mm;
+float Encoder::calc_length(uint32_t totalPulses) {
+  return (float)totalPulses / (float)Pulses_per_mm;
 }
-
-uint32_t Encoder::get_length (){
+float Encoder::get_length (){
     int16_t count = 0;
     pcnt_get_counter_value(PCNT_UNIT, &count);    // Read current 0..32767 hardware count
 
     // Each overflow represents 32768 counts (0..32767 inclusive)
     uint32_t totalPulses = (_overflowCount * 32768u) + (uint16_t)count;
-    uint32_t length = calc_length(totalPulses);
+    float length = calc_length(totalPulses);
     return length;
-    
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-
+  
     //pcnt_counter_clear(PCNT_UNIT);                // Clear hardware counter for next window
    // overflowCount = 0;                            // Clear software overflow extension
 }

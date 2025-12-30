@@ -16,18 +16,18 @@ class Encoder{
     Encoder(const uint8_t dataPin);
 
     //========== Funktions-Prototypen  ==========//
-    uint32_t get_length ();
+    float get_length ();
 
 
     private:
     //========== Funktions-Prototypen  ==========//
-    uint32_t calc_length(uint32_t totalPulses);
+    float calc_length(uint32_t totalPulses);
     void pcnt_init();
     static void IRAM_ATTR pcnt_intr_handler(void *arg);
 
     //========== Variablen  ==========//
     const uint8_t _dataPin;
-    static int32_t _overflowCount;
+    static volatile int32_t _overflowCount;
 
 };
 

@@ -3,6 +3,7 @@
 #include "HotEnd.h"
 #include "LoadCell.h"
 #include "ExtruderStepper.h"
+#include "Rotary_Encoder.h"
 
 // Stepper 
 #define EN_PIN     11
@@ -29,6 +30,7 @@
 HotEnd myHotEnd(HEATER_PIN, NTC_PIN, FAN_PIN);
 LoadCell myLoadCell(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 ExtruderStepper extruder(STEP_PIN, DIR_PIN, EN_PIN);
+Encoder myEncoder(ROTARY_ENCODER_PIN);
 
 //========== Tasks ==========//
 TaskHandle_t loadCellTaskHandle = NULL;
@@ -70,27 +72,27 @@ void setup(){
   if (xTaskCreatePinnedToCore (NTC_task, "NTC Task", 6144, nullptr, 1, &NTCTaskHandle, 0) != pdPASS) {
     Serial.println("Fehler beim erstellen von NTC Task");
   }
-  vTaskSuspend(NTCTaskHandle); // Task vorerst anhalten
+  // vTaskSuspend(NTCTaskHandle); // Task vorerst anhalten
 
   if (xTaskCreatePinnedToCore (stepper_task, "Stepper Task", 6144, nullptr, 1, &stepperTaskHandle, 1) != pdPASS) {
     Serial.println("Fehler beim erstellen von Stepper Task");
   }
-  //vTaskSuspend(stepperTaskHandle); // Task vorerst anhalten
+  vTaskSuspend(stepperTaskHandle); // Task vorerst anhalten
 
   if (xTaskCreatePinnedToCore (hotEnd_task, "Hot End Task", 6144, nullptr, 1, &hotEndTaskHandle, 0) != pdPASS) {
     Serial.println("Fehler beim erstellen von Hot End Task");
   }
-  vTaskSuspend(hotEndTaskHandle); // Task vorerst anhalten
+  //vTaskSuspend(hotEndTaskHandle); // Task vorerst anhalten
 
   if (xTaskCreatePinnedToCore (serial_task, "Serial Task", 6144, nullptr, 1, &serialTaskHandle, 0) != pdPASS) {
     Serial.println("Fehler beim erstellen von Serial Task");
   }
-  vTaskSuspend(serialTaskHandle); // Task vorerst anhalten
+  //vTaskSuspend(serialTaskHandle); // Task vorerst anhalten
 }
 
 void loop(){
 
-
+  
   vTaskDelay(pdMS_TO_TICKS(50));
 }
 
@@ -99,13 +101,12 @@ void loop(){
 
 void loadCell_task(void* parameters){
   for(;;){
-    float wheight = myLoadCell.getMeanWheight(10);
-    //Serial.print(">wheight:");
-    //Serial.println(wheight, 3);      
-    float fil = extruder.getExtrudedMmSinceStart();
-    long time = extruder.getTimeMsSinceStart();
-    Serial.println(fil);
-    Serial.println(time);
+    float wheight = myLoadCell.getMeanWheight(4);
+    Serial.print(">wheight:");
+    Serial.println(wheight, 3);      
+    float length = myEncoder.get_length();
+    Serial.print(">length:");
+    Serial.println(length);
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
@@ -152,7 +153,7 @@ void hotEnd_task(void* parameters){
       if (!tempReached && temp >= HEATER_SET_POINT) {
         tempReached = true;                 
         if (stepperTaskHandle) {
-          //vTaskResume(stepperTaskHandle);   // Stepper läuft ab jetzt dauerhaft
+          vTaskResume(stepperTaskHandle);   // Stepper läuft ab jetzt dauerhaft
         }
     }
 

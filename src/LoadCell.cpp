@@ -63,5 +63,7 @@ double LoadCell::getRawWheight(){
 //========== Private Funktions-Implementierungen  ==========//
 
 double LoadCell::calcWeight(long analogVal){
-  return 0.010008  * analogVal - 1838.82;
+ // return 0.010008  * analogVal - 1838.82;
+ //Gewicht[g] ≈ 0.009557 * ADC + -1710.042129
+ return 0.009557 * analogVal - 1828.82;
 }
