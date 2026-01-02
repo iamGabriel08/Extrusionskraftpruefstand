@@ -13,14 +13,15 @@ class GUICom{
     //========== Funktions-Prototypen  ==========//
 
     //überprüft, ob es input von der GUI gibt und schreibt diesen ggf. in die Variablen
-    bool get_serial_input(uint32_t* temp, uint32_t* vorschub, uint32_t* abschalten);
+    bool get_serial_input(float* temp, float* feedrate, float* feedlength);
 
 
     private:
 
     typedef struct{
         String temp_string;
-        String vorschub_string;
+        String feedrate_string;
+        String feedlength_string;
         String abschalten_string;
     }mess_parameter_string;
 
@@ -28,7 +29,7 @@ class GUICom{
     //========== Funktions-Prototypen  ==========//
 
     //konvertiert Zahlen-String zu integer
-    uint32_t string_to_int(String text);
+    float string_to_float(String text);
 
     //spaltet empfangenen String in Teilstrings aus Zahlen auf
     void split_string(String raw_string, mess_parameter_string* pStruct);

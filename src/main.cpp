@@ -14,8 +14,10 @@
 #define STEP_PIN    10
 #define DIR_PIN     9
 
-float extrusion_per_s_in_mm = 0.0f;
-uint32_t extrusion_per_min_in_mm = 300;
+//float extrusion_per_s_in_mm = 0.0f;
+//uint32_t extrusion_per_min_in_mm = 300.;
+float feed_rate_per_s_in_mm;
+float feed_length_in_mm;
 
 // Hot-End
 #define NTC_PIN 4
@@ -25,8 +27,8 @@ uint32_t extrusion_per_min_in_mm = 300;
 // Hot-End PI-Regler
 #define HEATER_DELAY 100
 
-uint32_t heater_temp_target = 200; //ersetzt HEATER_SET_POINT
-uint32_t hot_end_abschalten;
+float heater_temp_target = 200.; //ersetzt HEATER_SET_POINT
+float hot_end_abschalten; //in der aktuellen GUI nicht beinhaltet
 
 // Load Cell
 #define LOADCELL_DOUT_PIN 8
@@ -203,8 +205,8 @@ void hotEnd_task(void* parameters){
         
         // Stepper
         vTaskResume(stepperTaskHandle);
-        extrusion_per_s_in_mm = (float)extrusion_per_min_in_mm / 60.0f;
-        extruder.setFilamentSpeedMmS(extrusion_per_s_in_mm);
+        //extrusion_per_s_in_mm = (float)extrusion_per_min_in_mm / 60.0f;
+        extruder.setFilamentSpeedMmS(feed_rate_per_s_in_mm);
         extruder.enable(true);               // WICHTIG!
         extruder.resetExtrudedMm(); // muss aufgerufen werden damit Filamentlängenzählung und Zeitzählung neu beginnt
 
@@ -226,16 +228,16 @@ void hotEnd_task(void* parameters){
 
 void serial_task(void* parameters){
   for(;;){
-    if(my_GUI.get_serial_input(&heater_temp_target, &extrusion_per_min_in_mm, &hot_end_abschalten)==true){
+    if(my_GUI.get_serial_input(&heater_temp_target, &feed_rate_per_s_in_mm, &feed_length_in_mm)==true){
 
       //printe Daten (zum Debuggen)
       Serial.println("Empfangene Daten:");
       Serial.println("Temperatur");
       Serial.println(heater_temp_target);
-      Serial.println("Vorschub");
-      Serial.println(extrusion_per_min_in_mm);
-      Serial.println("Abschalten?");
-      Serial.println(hot_end_abschalten);
+      Serial.println("FeedRate");
+      Serial.println(feed_rate_per_s_in_mm);
+      Serial.println("FeedLength");
+      Serial.println(feed_length_in_mm);
       // Vorbereitung für neue Messung
       tempReached = false;                 // WICHTIG!
       xQueueReset(tempQueueHandle);        // optional, aber sauber

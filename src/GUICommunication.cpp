@@ -8,16 +8,16 @@ GUICom::GUICom(){
 
 //========== Öffentliche Funktions-Implementierungen  ==========//
 
-bool GUICom::get_serial_input(uint32_t* temp_data, uint32_t* vorschub_data, uint32_t* abschalten){
+bool GUICom::get_serial_input(float* temp_data, float* feedrate, float* feedlength){
     if(Serial.available()>0){ //falls input von GUI vorhanden
         String receivedData = Serial.readStringUntil('\n');
-    
+
         mess_parameter_string meine_parameter;
         split_string(receivedData, &meine_parameter);
         
-        *temp_data=string_to_int(meine_parameter.temp_string);
-        *vorschub_data=string_to_int(meine_parameter.vorschub_string);
-        *abschalten=string_to_int(meine_parameter.abschalten_string);
+        *temp_data=string_to_float(meine_parameter.temp_string);
+        *feedrate=string_to_float(meine_parameter.feedrate_string);
+        *feedlength=string_to_float(meine_parameter.feedlength_string);
         return true;
     }else{
         return false;
@@ -26,13 +26,27 @@ bool GUICom::get_serial_input(uint32_t* temp_data, uint32_t* vorschub_data, uint
 
 //========== Private Funktions-Implementierungen  ==========//
 
-uint32_t GUICom::string_to_int(String text){
+float GUICom::string_to_float(String text){
   int length=text.length();
+  int point_pos=1;
+  while(point_pos<length && text[point_pos]!='.'){
+    point_pos++;
+  }
+  String vorKomma=text.substring(0,point_pos);
   int factor=1;
-  int val=0;
-  for(int i=0; i<length; i++){
-    val+=(text[length-1-i]-'0')*factor;
+  float val=0.;
+  for(int i=0; i<vorKomma.length(); i++){
+    val+=(vorKomma[vorKomma.length()-i-1]-'0')*factor;
     factor*=10;
+  }
+
+  if(point_pos<length){
+    String nachKomma=text.substring(point_pos+1);
+    float factor=10.;
+    for(int i=0; i<nachKomma.length(); i++){
+      val+=(nachKomma[i]-'0')/factor;
+      factor*=10.;
+    }
   }
   return val;
 }
@@ -44,9 +58,15 @@ void GUICom::split_string(String raw_string, mess_parameter_string* pStruct){
   raw_string=raw_string.substring(index+1);
 
   index=raw_string.indexOf(' ');
-  pStruct->vorschub_string=raw_string.substring(0,index);
+  pStruct->feedrate_string=raw_string.substring(0,index);
+  raw_string=raw_string.substring(index+1);
+
+  index=raw_string.indexOf(' ');
+  pStruct->feedlength_string=raw_string.substring(0,index);
+  /*
   raw_string=raw_string.substring(index+1);
 
   index=raw_string.indexOf(' ');
   pStruct->abschalten_string=raw_string.substring(0,index);
+  */
 }
