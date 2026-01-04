@@ -58,6 +58,9 @@ QueueHandle_t tempQueueHandle = NULL;
 // Zeitstempel für Controller Taks
 unsigned long timeStamp = 0;
 
+// Messzeit in ms (wird durch GUI Parameter berechnet)
+unsigned long measureTimeMS = 0;
+
 // Flag falls definierte Temperatur noch nicht erreicht
 bool tempReached = false; 
 
@@ -128,6 +131,7 @@ void loop(){
 // ====================== Funktionen-Implementierungen ======================//
 
 void loadCell_task(void* parameters){
+  vTaskSuspend(NULL);
   for(;;){
     float force = myLoadCell.getForce();
     Serial.print(">Force:");
@@ -137,6 +141,7 @@ void loadCell_task(void* parameters){
 }
 
 void NTC_task(void* parameters){
+  vTaskSuspend(NULL);
   for(;;){
     float temp = myHotEnd.getTemperature(); 
     if(xQueueSend(tempQueueHandle, (void*)&temp, pdMS_TO_TICKS(10)) != pdPASS) Serial.println("Fehler beim Senden der Temperatur");               
@@ -145,6 +150,7 @@ void NTC_task(void* parameters){
 }
 
 void stepper_task(void*) {
+  vTaskSuspend(NULL);
   for(;;){
     extruder.runSpeed();
     taskYIELD();  // sehr kurz abgeben, ohne 1ms-Schlaf
@@ -152,6 +158,7 @@ void stepper_task(void*) {
 }
 
 void rotEncoder_task(void* parameters){
+  vTaskSuspend(NULL);
   for(;;){
     
     float ist = myEncoder.get_length();
@@ -168,6 +175,7 @@ void rotEncoder_task(void* parameters){
 }
 
 void hotEnd_task(void* parameters){
+  vTaskSuspend(NULL);
   myHotEnd.setFanPwm(180);
   for(;;){
 
@@ -260,6 +268,7 @@ void serial_task(void* parameters){
 }
 
 void controller_task(void* parameters){
+  vTaskSuspend(NULL);
   for(;;){
     if (timeStamp != 0 && measureTimeMS != 0 && (millis() - timeStamp >= measureTimeMS)) {
     timeStamp = 0;
@@ -284,7 +293,6 @@ void controller_task(void* parameters){
   }
 }
   
-
 void stopAllActuators(void){
   myHotEnd.setFanPwm(0);
   myHotEnd.setHeaterPwm(0);
@@ -292,19 +300,18 @@ void stopAllActuators(void){
   extruder.enable(false);
 }
 
- bool computeMeasureTime(){
-  extrusion_per_s_in_mm = (float)extrusion_per_min_in_mm / 60.0f;  // mm/min -> mm/s
+bool computeMeasureTime(){
 
-  if (extrusion_per_s_in_mm <= 0.0001f) {
+  if (feed_rate_per_s_in_mm <= 0.0001f) {
     Serial.println("Fehler: Geschwindigkeit ist 0");
     return false;
   }
-  if (feedLengthMM <= 0.0f) {
+  if (feed_length_in_mm <= 0.0f) {
     Serial.println("Fehler: Förderlänge ist 0");
     return false;
   }
 
-  float t_s = feedLengthMM / extrusion_per_s_in_mm;  // Sekunden
+  float t_s = feed_length_in_mm / feed_rate_per_s_in_mm;  // Sekunden
   measureTimeMS = (unsigned long)(t_s * 1000.0f);    // Millisekunden
 
   Serial.print("MeasureTimeMS=");
