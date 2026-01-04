@@ -13,7 +13,7 @@ class GUICom{
     //========== Funktions-Prototypen  ==========//
 
     //überprüft, ob es input von der GUI gibt und schreibt diesen ggf. in die Variablen
-    bool get_serial_input(float* temp, float* feedrate, float* feedlength);
+    bool get_serial_input(float* temp, float* feedrate, float* feedlength, uint8_t* shut_off, uint8_t* tare);
 
 
     private:

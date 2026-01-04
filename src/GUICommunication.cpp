@@ -8,17 +8,22 @@ GUICom::GUICom(){
 
 //========== Öffentliche Funktions-Implementierungen  ==========//
 
-bool GUICom::get_serial_input(float* temp_data, float* feedrate, float* feedlength){
+bool GUICom::get_serial_input(float* temp_data, float* feedrate, float* feedlength, uint8_t* shut_off, uint8_t* tare){
     if(Serial.available()>0){ //falls input von GUI vorhanden
         String receivedData = Serial.readStringUntil('\n');
-
-        mess_parameter_string meine_parameter;
-        split_string(receivedData, &meine_parameter);
-        
-        *temp_data=string_to_float(meine_parameter.temp_string);
-        *feedrate=string_to_float(meine_parameter.feedrate_string);
-        *feedlength=string_to_float(meine_parameter.feedlength_string);
-        return true;
+        if(receivedData=="tare"){
+          *tare=1;
+          return false;
+        }else{
+          mess_parameter_string meine_parameter;
+          split_string(receivedData, &meine_parameter);
+          
+          *temp_data=string_to_float(meine_parameter.temp_string);
+          *feedrate=string_to_float(meine_parameter.feedrate_string);
+          *feedlength=string_to_float(meine_parameter.feedlength_string);
+          *shut_off=(uint8_t)string_to_float(meine_parameter.abschalten_string);
+          return true;
+        }
     }else{
         return false;
     }
@@ -63,10 +68,9 @@ void GUICom::split_string(String raw_string, mess_parameter_string* pStruct){
 
   index=raw_string.indexOf(' ');
   pStruct->feedlength_string=raw_string.substring(0,index);
-  /*
   raw_string=raw_string.substring(index+1);
 
   index=raw_string.indexOf(' ');
   pStruct->abschalten_string=raw_string.substring(0,index);
-  */
+  
 }
