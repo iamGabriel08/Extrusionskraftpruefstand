@@ -13,6 +13,7 @@
 
 //float extrusion_per_s_in_mm = 0.0f;
 //uint32_t extrusion_per_min_in_mm = 300.;
+float measureTimeMS; 
 float feed_rate_per_s_in_mm;
 float feed_length_in_mm;
 
@@ -25,11 +26,12 @@ float feed_length_in_mm;
 #define HEATER_DELAY 100
 
 float heater_temp_target = 200.; //ersetzt HEATER_SET_POINT
-float hot_end_abschalten; //in der aktuellen GUI nicht beinhaltet
+uint8_t hot_end_abschalten=0; 
 
 // Load Cell
 #define LOADCELL_DOUT_PIN 8
 #define LOADCELL_SCK_PIN 3
+uint8_t tare=0; //1, falls genullt werden soll
 
 // Rotary Encoder
 #define ROTARY_ENCODER_PIN 5
@@ -131,7 +133,9 @@ void loadCell_task(void* parameters){
   for(;;){
     float force = myLoadCell.getForce();
     Serial.print(">Force:");
-    Serial.println(force, 3);      
+    Serial.println(force, 3);
+    Serial.print("f");
+    Serial.println(force, 3);    
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
@@ -160,6 +164,8 @@ void rotEncoder_task(void* parameters){
     float schlupf = (1.0f - (ist / soll)) * 100.0f; //schlupf in %
     Serial.print(">Schlupf %:");
     Serial.println(schlupf);
+    Serial.print("s");
+    Serial.println(schlupf, 2);
     } else {
     Serial.println(">Schlupf %:0");
   }
@@ -174,7 +180,9 @@ void hotEnd_task(void* parameters){
     static float temp = 0;
     if(xQueueReceive(tempQueueHandle, &temp, pdMS_TO_TICKS(10)) != pdPASS) Serial.println("Fehler beim Empfangen der Temperatur");
       Serial.print(">temp:");
-      Serial.println(temp, 2);   
+      Serial.println(temp, 2); 
+      Serial.print("c");
+      Serial.println(temp, 2);  
       
       if (temp >= heater_temp_target) {
           // über oder am Soll: Heizer aus
@@ -232,7 +240,7 @@ void hotEnd_task(void* parameters){
 
 void serial_task(void* parameters){
   for(;;){
-    if(my_GUI.get_serial_input(&heater_temp_target, &feed_rate_per_s_in_mm, &feed_length_in_mm)==true){
+    if(my_GUI.get_serial_input(&heater_temp_target, &feed_rate_per_s_in_mm, &feed_length_in_mm, &hot_end_abschalten, &tare)==true){
 
       //printe Daten (zum Debuggen)
       Serial.println("Empfangene Daten:");
@@ -242,6 +250,8 @@ void serial_task(void* parameters){
       Serial.println(feed_rate_per_s_in_mm);
       Serial.println("FeedLength");
       Serial.println(feed_length_in_mm);
+      Serial.println("Abschalten?");
+      Serial.println(hot_end_abschalten);
       // Vorbereitung für neue Messung
       tempReached = false;                 // WICHTIG!
       xQueueReset(tempQueueHandle);        // optional, aber sauber
@@ -254,6 +264,9 @@ void serial_task(void* parameters){
       // Heizen starten
       vTaskResume(NTCTaskHandle);
       vTaskResume(hotEndTaskHandle);
+    }else{
+      Serial.print("Tare=");
+      Serial.println(tare);
     }
     vTaskDelay(pdMS_TO_TICKS(200));
   }
@@ -292,10 +305,12 @@ void stopAllActuators(void){
   extruder.enable(false);
 }
 
- bool computeMeasureTime(){
-  extrusion_per_s_in_mm = (float)extrusion_per_min_in_mm / 60.0f;  // mm/min -> mm/s
 
-  if (extrusion_per_s_in_mm <= 0.0001f) {
+ bool computeMeasureTime(){ 
+  //extrusion_per_s_in_mm = (float)extrusion_per_min_in_mm / 60.0f;  // mm/min -> mm/s
+  //nicht notwendig, das macht die GUI
+  /*
+  if (feed_rate_per_s_in_mm <= 0.0001f) {
     Serial.println("Fehler: Geschwindigkeit ist 0");
     return false;
   }
@@ -303,8 +318,8 @@ void stopAllActuators(void){
     Serial.println("Fehler: Förderlänge ist 0");
     return false;
   }
-
-  float t_s = feedLengthMM / extrusion_per_s_in_mm;  // Sekunden
+  */
+  float t_s = feed_length_in_mm / feed_rate_per_s_in_mm;  // Sekunden
   measureTimeMS = (unsigned long)(t_s * 1000.0f);    // Millisekunden
 
   Serial.print("MeasureTimeMS=");
