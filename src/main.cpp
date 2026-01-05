@@ -273,6 +273,7 @@ void hotEnd_task(void* parameters){
         vTaskResume(loadCellTaskHandle);
         vTaskResume(ControllerTaskHandle);
         vTaskSuspend(serialTaskHandle);
+        Serial.println("begin"); //meldet der GUI, dass Aufheizen zuende und Messung beginnt
     }
     // Regler
     //const float dt_s = HEATER_DELAY / 1000.0f;  
@@ -317,8 +318,8 @@ void serial_task(void* parameters){
       if(tare == 1){
        tareLoadCell();
       }
-      Serial.print("Tare=");
-      Serial.println(tare);
+      //Serial.print("Tare=");
+      //Serial.println(tare);
     }
     vTaskDelay(pdMS_TO_TICKS(200));
   }
@@ -332,7 +333,7 @@ void controller_task(void* parameters){
     tempReached = false;
     isMeasuring = false;
     stopAllActuators();
-    Serial.println("Die Messung ist abgeschlossen");
+    Serial.println("end"); //teilt der GUI mit, dass die Messung zu Ende ist
 
     if(!myEncoder.reset()) Serial.println("Fehler beim reseten des Encoders");
 
@@ -369,8 +370,8 @@ void Telemetry_Task(void* parameters){
     Serial.println(slip, 2);
     Serial.print("c");
     Serial.println(temp, 2);  
-    //Serial.print("t");
-    //Serial.println(time);
+    Serial.print("t");
+    Serial.println(time);
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
