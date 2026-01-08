@@ -6,7 +6,8 @@
 #include "Rotary_Encoder.h"
 #include "GUICommunication.h"
 
-// Stepper 
+//========== Stepper ==========//
+
 #define EN_PIN     11
 #define STEP_PIN    10
 #define DIR_PIN     9
@@ -17,23 +18,25 @@ float feed_length_in_mm = 50;
 // Messzeit in ms (wird durch GUI Parameter berechnet)
 unsigned long measureTimeMS = 0;
 
-// Hot-End
+//========== Hot-End ==========//
+
 #define NTC_PIN 4
 #define HEATER_PIN 6
 #define FAN_PIN 7
-
-// Hot-End PI-Regler
 #define HEATER_DELAY 100
 
-float heater_temp_target = 180.; //ersetzt HEATER_SET_POINT
+float heater_temp_target = 180.; 
 uint8_t hot_end_abschalten=0; 
 
-// Load Cell
+//==========  Load Cell ==========//
+
 #define LOADCELL_DOUT_PIN 8
 #define LOADCELL_SCK_PIN 3
 uint8_t tare=0; //1, falls genullt werden soll
 
-// Rotary Encoder
+
+//==========  Rotary Encoder ==========//
+
 #define ROTARY_ENCODER_PIN 5
 
 //========== Objekte ==========//
@@ -53,6 +56,8 @@ TaskHandle_t RotEncoderTaskHandle = NULL;
 TaskHandle_t ControllerTaskHandle = NULL;
 TaskHandle_t TelemetryTaskHandle = NULL;
 
+//========== Queues ==========//
+
 // Queue für Temperaturwerte (NTC Task -> Hot End Task)
 QueueHandle_t tempHotEndQueueHandle = NULL; 
 #define TEMP_QUEUE_LENGTH 10
@@ -66,10 +71,14 @@ QueueHandle_t ForceQueueHandle = NULL;
 #define FORCE_QUEUE_LENGTH 10
 #define FORCE_QUEUE_SIZE sizeof(float)
 
-// Queue für Kraftwerte (RotEncoder Task -> Telemetry Task)
-QueueHandle_t SlipQueueHandle = NULL; 
+// Queue für Slip (RotEncoder Task -> Telemetry Task)
+QueueHandle_t SlipTelemetryQueueHandle = NULL; 
 #define SLIP_QUEUE_LENGTH 10
 #define SLIP_QUEUE_SIZE sizeof(float)
+// Queue für Slip (RotEncoder Task -> Controller Task) --> nutz die Selben Makros wie SlipTelemetryQueue
+QueueHandle_t SlipControllerQueueHandle = NULL; 
+
+//========== Controller Task ==========//
 
 // Zeitstempel für Controller Taks
 unsigned long timeStamp = 0;
@@ -79,6 +88,20 @@ volatile bool tempReached = false;
 
 // Flag das die Messung läuft
 volatile bool isMeasuring = false;
+
+enum MeasureMode: uint8_t{
+  MODE_TIME = 0,
+  MODE_MAX_FORCE = 1
+};
+
+volatile MeasureMode gMode = MODE_TIME;
+
+// Stepper-Skip/Slip-Erkennung
+static constexpr float SLIP_TRIGGER_PERCENT = 80.0f;     // Schlupf in % beim welchem abgeschalten werden soll
+static constexpr uint32_t SLIP_HOLD_MS = 300;            // Schlupf muss so lange stattfinden
+static constexpr uint32_t MAX_FORCE_TIMEOUT_MS = 120000; // Safety: 2min max-force Mode
+
+volatile bool heaterLockedOff = false;                   // im Max-Force Mode nach T_soll = true
 
 // ====================== Funktionen-Definitionen ======================//
 void loadCell_task(void* parameters);
@@ -108,8 +131,11 @@ void setup(){
   ForceQueueHandle = xQueueCreate(FORCE_QUEUE_LENGTH, FORCE_QUEUE_SIZE);
   if(ForceQueueHandle == NULL) Serial.println("Fehler beim erstellen der Kraft Queue für die Telemetry");
 
-  SlipQueueHandle = xQueueCreate(SLIP_QUEUE_LENGTH, SLIP_QUEUE_SIZE);
-  if(SlipQueueHandle == NULL) Serial.println("Fehler beim erstellen der Slip Queue für die Telemetry");
+  SlipTelemetryQueueHandle = xQueueCreate(SLIP_QUEUE_LENGTH, SLIP_QUEUE_SIZE);
+  if(SlipTelemetryQueueHandle == NULL) Serial.println("Fehler beim erstellen der Slip Queue für die Telemetry");
+
+  SlipControllerQueueHandle = xQueueCreate(SLIP_QUEUE_LENGTH, SLIP_QUEUE_SIZE);
+  if(SlipControllerQueueHandle == NULL) Serial.println("Fehler beim erstellen der Slip Queue für den Controller");
 
   // Tasks
   if (xTaskCreatePinnedToCore (loadCell_task, "Load Cell Task", 6144, nullptr, 1, &loadCellTaskHandle, 0) != pdPASS) {
@@ -211,18 +237,29 @@ void rotEncoder_task(void* parameters){
     float dummy;
     if(isMeasuring){
        if (soll > 0.001f) {
+
       float schlupf = (1.0f - (ist / soll)) * 100.0f; //schlupf in %
-      if(xQueueSend(SlipQueueHandle, (void*)&schlupf, 0) != pdPASS){
-        xQueueReceive(SlipQueueHandle, (void*)&dummy,0);
-        xQueueSend(SlipQueueHandle, (void*)&schlupf, 0);
+      if(xQueueSend(SlipTelemetryQueueHandle, (void*)&schlupf, 0) != pdPASS){
+        xQueueReceive(SlipTelemetryQueueHandle, (void*)&dummy,0);
+        xQueueSend(SlipTelemetryQueueHandle, (void*)&schlupf, 0);
       }
+      if(xQueueSend(SlipControllerQueueHandle, (void*)&schlupf, 0) != pdPASS){
+        xQueueReceive(SlipControllerQueueHandle, (void*)&dummy,0);
+        xQueueSend(SlipControllerQueueHandle, (void*)&schlupf, 0);
+      }
+
       } 
       else {
+
         float schlupf_0 = 0;
-        if(xQueueSend(SlipQueueHandle, (void*)&schlupf_0, 0) != pdPASS){
-        xQueueReceive(SlipQueueHandle, (void*)&dummy,0);
-        xQueueSend(SlipQueueHandle, (void*)&schlupf_0, 0);
-      }
+        if(xQueueSend(SlipTelemetryQueueHandle, (void*)&schlupf_0, 0) != pdPASS){
+        xQueueReceive(SlipTelemetryQueueHandle, (void*)&dummy,0);
+        xQueueSend(SlipTelemetryQueueHandle, (void*)&schlupf_0, 0);
+        }
+        if(xQueueSend(SlipControllerQueueHandle, (void*)&schlupf_0, 0) != pdPASS){
+        xQueueReceive(SlipControllerQueueHandle, (void*)&dummy,0);
+        xQueueSend(SlipControllerQueueHandle, (void*)&schlupf_0, 0);
+        }
       }
     } 
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -239,52 +276,74 @@ void hotEnd_task(void* parameters){
       //Queue leeren bis zum neuesten element
     }
     
+    if (heaterLockedOff) {
+      myHotEnd.setHeaterPwm(0);
+      myHotEnd.setFanPwm(180);
+      } 
+    else{
+      // normale Heizlogik
       if (temp >= heater_temp_target) {
-          // über oder am Soll: Heizer aus
-          myHotEnd.setHeaterPwm(0);
-          myHotEnd.setFanPwm(180);
+        // über oder am Soll: Heizer aus
+        myHotEnd.setHeaterPwm(0);
+        myHotEnd.setFanPwm(180);
       }
       else if (temp >= (heater_temp_target - 20.0f)) {
-          // im Band: 20°C unter Soll bis Soll -> halbe Leistung
-          myHotEnd.setHeaterPwm(128);
-          myHotEnd.setFanPwm(180);
+        // im Band: 20°C unter Soll bis Soll -> halbe Leistung
+        myHotEnd.setHeaterPwm(128);
+        myHotEnd.setFanPwm(180);
       }
       else {
-          // weiter als 20°C unter Soll: Vollgas
-          myHotEnd.setHeaterPwm(255);
-          myHotEnd.setFanPwm(180);
+        // weiter als 20°C unter Soll: Vollgas
+        myHotEnd.setHeaterPwm(255);
+        myHotEnd.setFanPwm(180);
       }
-      
-      if (!tempReached && temp >= heater_temp_target) {
-        timeStamp = millis(); // Zeitstempel setzten wenn Messung beginnt
-        tempReached = true;                 
-        isMeasuring = true;
-        // Stepper
-        extruder.resetExtrudedMm();
-        extruder.enable(true);
-        extruder.setFilamentSpeedMmS(feed_rate_per_s_in_mm);
-        vTaskResume(stepperTaskHandle);
+    }
 
-        // Encoder
-        if(!myEncoder.reset()) Serial.println("Fehler beim reseten des Encoders");
-        if(!myEncoder.start_counter()) Serial.print("Fehler beim Encoderstart");
+    if (!tempReached && temp >= heater_temp_target) {
+      timeStamp = millis(); // Zeitstempel setzten wenn Messung beginnt
+      tempReached = true;                 
+      isMeasuring = true;
 
-        vTaskResume(RotEncoderTaskHandle);
-        vTaskResume(loadCellTaskHandle);
-        vTaskResume(ControllerTaskHandle);
-        vTaskSuspend(serialTaskHandle);
-        Serial.println("begin"); //meldet der GUI, dass Aufheizen zuende und Messung beginnt
+      if (gMode == MODE_MAX_FORCE) {
+        heaterLockedOff = true;  // <- ab jetzt bleibt der Heater aus!
+        myHotEnd.setHeaterPwm(0);
+      }
+
+      // Stepper
+      extruder.resetExtrudedMm();
+      extruder.enable(true);
+      extruder.setFilamentSpeedMmS(feed_rate_per_s_in_mm);
+      vTaskResume(stepperTaskHandle);
+
+      // Encoder
+      if(!myEncoder.reset()) Serial.println("Fehler beim reseten des Encoders");
+      if(!myEncoder.start_counter()) Serial.print("Fehler beim Encoderstart");
+
+      vTaskResume(RotEncoderTaskHandle);
+      vTaskResume(loadCellTaskHandle);
+      vTaskResume(ControllerTaskHandle);
+      vTaskSuspend(serialTaskHandle);
+      Serial.println("begin"); //meldet der GUI, dass Aufheizen zuende und Messung beginnt
     }
     // Regler
     //const float dt_s = HEATER_DELAY / 1000.0f;  
     //myHotEnd.piController(temp, dt_s,HEATER_SET_POINT);
     vTaskDelay(pdMS_TO_TICKS(HEATER_DELAY));
-    }
+  }
 }
 
 void serial_task(void* parameters){
   for(;;){
-    if(my_GUI.get_serial_input(&heater_temp_target, &feed_rate_per_s_in_mm, &feed_length_in_mm, &hot_end_abschalten, &tare)==true){
+
+    bool gotCmd = my_GUI.get_serial_input(&heater_temp_target, &feed_rate_per_s_in_mm, &feed_length_in_mm, &hot_end_abschalten, &tare);
+
+    // Tare immer priorisieren, sobald Flag gesetzt ist
+    if (tare == 1) {
+      tareLoadCell();     
+      tare = 0;           // WICHTIG: sonst wird endlos getared
+    }
+
+    if(gotCmd){
 
       //printe Daten (zum Debuggen)
       Serial.println("Empfangene Daten:");
@@ -296,36 +355,121 @@ void serial_task(void* parameters){
       Serial.println(feed_length_in_mm);
       Serial.println("Abschalten?");
       Serial.println(hot_end_abschalten);
-      // Vorbereitung für neue Messung
-      tempReached = false;                 // WICHTIG!
+
+      // Modus anhand GUI-Flag wählen
+      gMode = (hot_end_abschalten != 0) ? MODE_MAX_FORCE : MODE_TIME;
+
+      // Messung vorbereiten
+      tempReached = false;
+      isMeasuring = false;
+      heaterLockedOff = false;
+      timeStamp = 0;              // wichtig: damit Controller nicht sofort stoppt
 
       xQueueReset(tempTelemetryQueueHandle);
       xQueueReset(ForceQueueHandle);
-      xQueueReset(SlipQueueHandle);
-      xQueueReset(tempHotEndQueueHandle);        // optional, aber sauber
+      xQueueReset(SlipTelemetryQueueHandle);
+      xQueueReset(tempHotEndQueueHandle);        
+      xQueueReset(SlipControllerQueueHandle);
 
-      if (!computeMeasureTime()) {
-        Serial.println("Fehler beim Berechnen der Messzeit");
-        continue;
+      // Zeit nur für MODE_TIME berechnen
+      if (gMode == MODE_TIME) {
+        if (!computeMeasureTime()) {
+          Serial.println("Fehler beim Berechnen der Messzeit");
+          continue;
+        }
+      } 
+      else {
+        measureTimeMS = 0; // im Max-Force Mode wird nicht nach Zeit gestoppt
       }
-      Serial.print("Measure Zeit:");
-      Serial.println(measureTimeMS);
+      //Serial.print("Measure Zeit:");
+      //Serial.println(measureTimeMS);
+
       // Heizen starten
       vTaskResume(TelemetryTaskHandle);
       vTaskResume(NTCTaskHandle);
       vTaskResume(hotEndTaskHandle);
-    }else{
-      if(tare == 1){
-       tareLoadCell();
-      }
-      //Serial.print("Tare=");
-      //Serial.println(tare);
     }
+
     vTaskDelay(pdMS_TO_TICKS(200));
   }
 }
 
 void controller_task(void* parameters){
+  static uint32_t slipAboveSince = 0;
+  static uint32_t maxForceStart = 0;
+
+  for (;;) {
+
+    // Safety-Startzeit für Max-Force Mode
+    if (isMeasuring && gMode == MODE_MAX_FORCE && maxForceStart == 0) {
+      maxForceStart = millis();
+      slipAboveSince = 0;
+    }
+
+    bool stopNow = false;
+
+    if (isMeasuring && timeStamp != 0) {
+
+      if (gMode == MODE_TIME) {
+        if (measureTimeMS != 0 && (millis() - timeStamp >= measureTimeMS)) {
+          stopNow = true;
+        }
+      } 
+      else { // MODE_MAX_FORCE
+
+        // Slip “neueste” Werte holen (Queue leeren bis zuletzt)
+        float slip = NAN;
+        bool gotSlip = false;
+        while (xQueueReceive(SlipControllerQueueHandle, &slip, 0) == pdPASS) {
+          gotSlip = true;
+        }
+
+        if (gotSlip) {
+          if (slip >= SLIP_TRIGGER_PERCENT) {
+            if (slipAboveSince == 0) slipAboveSince = millis();
+            if (millis() - slipAboveSince >= SLIP_HOLD_MS) stopNow = true;
+          } 
+          else {
+            slipAboveSince = 0;
+          }
+        }
+
+        // Safety Timeout
+        if (!stopNow && maxForceStart != 0 && (millis() - maxForceStart >= MAX_FORCE_TIMEOUT_MS)) {
+          Serial.println("Max-Force Timeout -> Stop");
+          stopNow = true;
+        }
+      }
+    }
+
+    if (stopNow) {
+      timeStamp = 0;
+      measureTimeMS = 0;
+      tempReached = false;
+      isMeasuring = false;
+      heaterLockedOff = false;
+      maxForceStart = 0;
+      slipAboveSince = 0;
+
+      stopAllActuators();
+      myEncoder.reset();
+      Serial.println("end");
+
+      vTaskSuspend(stepperTaskHandle);
+      vTaskSuspend(hotEndTaskHandle);
+      vTaskSuspend(loadCellTaskHandle);
+      vTaskSuspend(NTCTaskHandle);
+      vTaskSuspend(RotEncoderTaskHandle);
+      vTaskSuspend(TelemetryTaskHandle);
+
+      vTaskResume(serialTaskHandle);
+      vTaskSuspend(NULL);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+
+  /*
   for(;;){
     if (timeStamp != 0 && measureTimeMS != 0 && (millis() - timeStamp >= measureTimeMS)) {
     timeStamp = 0;
@@ -347,7 +491,7 @@ void controller_task(void* parameters){
     vTaskSuspend(NULL);
     }
     vTaskDelay(pdMS_TO_TICKS(20));
-  }
+  }*/
 }
   
 void Telemetry_Task(void* parameters){
@@ -360,7 +504,7 @@ void Telemetry_Task(void* parameters){
     while(xQueueReceive(ForceQueueHandle, &force, 0) == pdPASS){
       //Queue leeren bis zum neuesten element
     }
-    while(xQueueReceive(SlipQueueHandle, &slip, 0) == pdPASS){
+    while(xQueueReceive(SlipTelemetryQueueHandle, &slip, 0) == pdPASS){
       //Queue leeren bis zum neuesten element
     }
 
@@ -395,7 +539,9 @@ bool computeMeasureTime(){
 
 void tareLoadCell(){
   
-  vTaskSuspend(loadCellTaskHandle);
+  eTaskState st = eTaskGetState(loadCellTaskHandle);
+  bool wasRunning = (st != eSuspended);
+  if (wasRunning) vTaskSuspend(loadCellTaskHandle);
 
   if (!myLoadCell.tare(20)) {
     Serial.println("Tare fehlgeschlagen (HX711 nicht ready?)");
@@ -403,8 +549,8 @@ void tareLoadCell(){
     Serial.println("Tare OK -> Force/Weight jetzt relativ zu Nullpunkt");
   }
 
-  vTaskResume(loadCellTaskHandle);
+  if (wasRunning) vTaskResume(loadCellTaskHandle);
 
-  tare = 0; // optional: verhindert, dass du bei gleichem Flag dauernd neu tarest
+  tare = 0; // optional: verhindert, dass  bei gleicher Flag dauernd neu getared wird
 
 }
