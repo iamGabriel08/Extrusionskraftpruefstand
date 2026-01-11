@@ -12,8 +12,8 @@
 #define STEP_PIN    10
 #define DIR_PIN     9
 
-float feed_rate_per_s_in_mm = 5;
-float feed_length_in_mm = 50;
+float feed_rate_per_s_in_mm;
+float feed_length_in_mm;
 
 // Messzeit in ms (wird durch GUI Parameter berechnet)
 unsigned long measureTimeMS = 0;
@@ -84,10 +84,10 @@ QueueHandle_t SlipControllerQueueHandle = NULL;
 unsigned long timeStamp = 0;
 
 // Flag falls definierte Temperatur noch nicht erreicht
-volatile bool tempReached = false; 
+bool tempReached = false; 
 
 // Flag das die Messung läuft
-volatile bool isMeasuring = false;
+bool isMeasuring = false;
 
 enum MeasureMode: uint8_t{
   MODE_TIME = 0,
@@ -101,7 +101,7 @@ static constexpr float SLIP_TRIGGER_PERCENT = 80.0f;     // Schlupf in % beim we
 static constexpr uint32_t SLIP_HOLD_MS = 300;            // Schlupf muss so lange stattfinden
 static constexpr uint32_t MAX_FORCE_TIMEOUT_MS = 120000; // Safety: 2min max-force Mode
 
-volatile bool heaterLockedOff = false;                   // im Max-Force Mode nach T_soll = true
+bool heaterLockedOff = false;                   // im Max-Force Mode nach T_soll = true
 
 // ====================== Funktionen-Definitionen ======================//
 void loadCell_task(void* parameters);
@@ -270,7 +270,6 @@ void rotEncoder_task(void* parameters){
 void hotEnd_task(void* parameters){
   myHotEnd.setFanPwm(180);
   for(;;){
-
     static float temp = 0;
     while(xQueueReceive(tempHotEndQueueHandle, &temp, 0) == pdPASS){
       //Queue leeren bis zum neuesten element
@@ -357,7 +356,7 @@ void serial_task(void* parameters){
       Serial.println(hot_end_abschalten);
 
       // Modus anhand GUI-Flag wählen
-      gMode = (hot_end_abschalten != 0) ? MODE_MAX_FORCE : MODE_TIME;
+      gMode = (hot_end_abschalten == 0) ? MODE_TIME : MODE_MAX_FORCE;
 
       // Messung vorbereiten
       tempReached = false;
@@ -395,8 +394,8 @@ void serial_task(void* parameters){
 }
 
 void controller_task(void* parameters){
-  static uint32_t slipAboveSince = 0;
-  static uint32_t maxForceStart = 0;
+  static uint32_t slipAboveSince = 0; // Zeit seit überschreiten des SLIP_TRIGGER_PERCENT
+  static uint32_t maxForceStart = 0; // Max Force Mode start Zeit in ms
 
   for (;;) {
 
@@ -508,6 +507,7 @@ void Telemetry_Task(void* parameters){
       //Queue leeren bis zum neuesten element
     }
 
+  
     Serial.print("f");
     Serial.println(force, 3);
     Serial.print("s");
