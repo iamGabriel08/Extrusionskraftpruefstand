@@ -325,7 +325,7 @@ void hotEnd_task(void* parameters){
       vTaskResume(ControllerTaskHandle);
       Serial.println("begin"); //meldet der GUI, dass Aufheizen zuende und Messung beginnt
     }
-    // Regler
+    // PI-Regler --> P und I Wert sind NICHT richtig eingestellt
     //const float dt_s = HEATER_DELAY / 1000.0f;  
     //myHotEnd.piController(temp, dt_s,HEATER_SET_POINT);
     vTaskDelay(pdMS_TO_TICKS(HEATER_DELAY));
