@@ -110,7 +110,7 @@ void HotEnd::piController(float temp, float dt, const float setPoint){
 
 //========== Private Funktions-Implementierungen  ==========//
 
-//neue Tabelle, direkt {voltage [V], temperature[°C]}
+//Tabelle mit Stützwerten, direkt {voltage [V], temperature[°C]}
 const HotEnd::_NtcPoint HotEnd::_ntcTable[HotEnd::_NTC_TABLE_SIZE] = {
     {2.046000, 102.923943},
     {1.653000, 120.719604},
@@ -127,7 +127,6 @@ const HotEnd::_NtcPoint HotEnd::_ntcTable[HotEnd::_NTC_TABLE_SIZE] = {
     {0.119000, 269.375000},
     {0.095000, 279.709290},
     {0.084000, 286.803040}
-    //eventuell nochmals Stüztwert mit 90 Ohm
 };
 
 double HotEnd::getNtcVoltage() {

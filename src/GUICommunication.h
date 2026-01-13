@@ -28,7 +28,7 @@ class GUICom{
 
         //========== Funktions-Prototypen Private ==========//
 
-        //konvertiert Zahlen-String zu integer
+        //konvertiert Zahlen-String zu float
         float string_to_float(String text);
 
         //spaltet empfangenen String in Teilstrings aus Zahlen auf

@@ -13,7 +13,7 @@ bool GUICom::get_serial_input(float* temp_data, float* feedrate, float* feedleng
         String receivedData = Serial.readStringUntil('\n');
         if(receivedData=="tare"){
           *tare=1;
-          return false;
+          return false; //tare startet nicht die Messung
         }else{
           mess_parameter_string meine_parameter;
           split_string(receivedData, &meine_parameter);
