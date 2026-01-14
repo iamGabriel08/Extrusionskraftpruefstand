@@ -49,7 +49,7 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
 
 ### PC-GUI (Python)
 - Python **3.10+** empfohlen
-- Pakete: `pyserial`, `matplotlib`, `numpy` 
+- Pakete: `pyserial`, `matplotlib`, `numpy`, `tkinter`
 
 ---
 
@@ -65,3 +65,25 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
    ```bash
    git clone https://github.com/iamGabriel08/Extrusionskraftpruefstand.git
    cd Extrusionskraftpruefstand
+
+## Graphical User Interface
+
+### Aufbau der GUI
+- 6 frames: 3 links, 3 rechts
+- 3 Eingabefelder für Parameter, 1 Eingabefeld für csv-Dateinamen und 1 Checkbox
+- 2 Buttons: tare und Teststart
+- optional: Monitor zum Debuggen: alle Serialprints des ESP werden angezeigt
+
+### Python Code
+- baud rate identisch mit derer des ESP
+- falls anderes Board verwendet wird, muss evt. vendor_id und product_id abgeändert werden
+- Port wird automatisch gefunden, falls PC mit ESP verbunden ist
+- Durchmessers des Filaments anpassbar (notwendig zur Berechnung der flow rate)
+
+### exe-Datei
+- falls Python-Code geändert wird, muss neue exe-Datei erstellt werden: 
+   1. pyinstaller installieren (nur einmalig notwendig)
+   2. Powershell im Speicherordner des Python-Codes öffnen
+   3. folgenden Befehl ausführen:
+      pyinstaller --onefile -w 'dateiname.py'
+   4. exe-Datei wird in einem Ordner names dist erstellt
