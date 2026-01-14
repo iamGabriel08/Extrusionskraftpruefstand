@@ -82,7 +82,6 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
 
 ### exe-Datei
 - falls Python-Code geändert wird, muss neue exe-Datei erstellt werden: 
-   ```bash
    1. pyinstaller installieren (nur einmalig notwendig)
    2. Powershell im Speicherordner des Python-Codes öffnen
    3. folgenden Befehl ausführen:
