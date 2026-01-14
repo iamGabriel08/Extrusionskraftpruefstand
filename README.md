@@ -26,6 +26,7 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
 - `lib/` – Externe/zusätzliche Libraries 
 - `Python/` – PC-Software (GUI, Plotting, Logging, Tools/Notebooks)
 - `Manual/` – Doku/Anleitungen/Build-Infos
+- `GUI/` - .exe für GUI
 - `platformio.ini` – PlatformIO Build-Konfiguration
 
 ---
@@ -46,6 +47,8 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
 
 ### Firmware (PlatformIO)
 - VS Code + **PlatformIO** Extension
+- HX711 Library by bodge
+-AccelStepper Library by Mike McCauley
 
 ### PC-GUI (Python)
 - Python **3.10+** empfohlen
@@ -60,11 +63,6 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
 ### 2) ESP32 per USB Kabel verbinden
 
 ### 3) .exe des GUI ausführen
-
-1. Repo klonen:
-   ```bash
-   git clone https://github.com/iamGabriel08/Extrusionskraftpruefstand.git
-   cd Extrusionskraftpruefstand
 
 ## Graphical User Interface
 
