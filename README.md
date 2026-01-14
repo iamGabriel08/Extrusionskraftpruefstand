@@ -39,7 +39,7 @@ Dieses Repo ist als PlatformIO-Projekt + Python-GUI organisiert:
 - Kraftmessung: Wägezelle + **HX711**
 - Filamentweg/Schlupf: Rotary-Encoder am Filamentpfad
 - Leistungselektronik: MOSFET-Treiber + MOSFET (für Heizer und Lüfter)
-- Netzteil passend zu Heater/Stepper (Leistung beachten--> Prüfstand hat ca.1665W)
+- Netzteil passend zu Heater/Stepper (Leistung beachten--> Prüfstand hat ca. 62W)
 
 ---
 
